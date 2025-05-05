@@ -4,7 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'preferences.dart';
 import 'splash.dart';
 import 'home.dart';
-import 'gets1.dart';
+import 'location_screen.dart';
 import 'ranking.dart';
 import 'login.dart';
 import 'register.dart';
@@ -35,7 +35,7 @@ class MyApp extends StatelessWidget {
       home: const InitialScreen(),
       routes: {
         '/home':        (c) => const RestaurantListingPage(),
-        // '/map':         (c) => const LocationScreen(),
+        '/map':         (c) => const LocationScreen(),
         '/leaderboard': (c) => const LeaderboardPage(),
         '/login':       (c) => const LoginPage(),
         '/register':    (c) => const RegisterPage(),

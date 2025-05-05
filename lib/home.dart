@@ -7,7 +7,7 @@ import 'details.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert'; // For JSON encoding/decoding
-
+import 'map_location_picker.dart';
 
 
 class RestaurantCard extends StatelessWidget {
@@ -216,7 +216,6 @@ class RestaurantListingPage extends StatefulWidget {
   State<RestaurantListingPage> createState() => _RestaurantListingPageState();
 }
 
-
 class _RestaurantListingPageState extends State<RestaurantListingPage> {
   List<Map<String, dynamic>> _restaurants = [];
   List<Map<String, dynamic>> _filteredRestaurants = [];
@@ -252,62 +251,73 @@ class _RestaurantListingPageState extends State<RestaurantListingPage> {
   //   });
   // }
 
-void _loadAndReorder() async {
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  final picks = AppPreferences.getTopPicks();
+  void _loadAndReorder() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final picks = AppPreferences.getTopPicks();
 
-  try {
-    final snapshot = await FirebaseFirestore.instance.collection('restaurants').get();
-    final docs = snapshot.docs;
+    try {
+      final snapshot =
+          await FirebaseFirestore.instance.collection('restaurants').get();
+      final docs = snapshot.docs;
 
-    final restaurants = docs.map((doc) {
-      final data = doc.data();
-      return {
-        'id': doc.id,
-        'name': data['name'] ?? 'Unknown',
-        'users': data['users']?.toString() ?? '0',
-        'image': data['image'] ?? 'assets/images/default.png',
-        'ratings': Map<String, double>.from(data['ratings'] ?? {}),
-        'colorHex': data['colorHex'] ?? '#FFFFFF',
-      };
-    }).toList();
+      final restaurants =
+          docs.map((doc) {
+            final data = doc.data();
+            return {
+              'id': doc.id,
+              'name': data['name'] ?? 'Unknown',
+              'users': data['users']?.toString() ?? '0',
+              'image': data['image'] ?? 'assets/images/default.png',
+              'ratings': Map<String, double>.from(data['ratings'] ?? {}),
+              'colorHex': data['colorHex'] ?? '#FFFFFF',
+            };
+          }).toList();
 
-    // Save to local cache
-    await prefs.setString('cached_restaurants', jsonEncode(restaurants));
+      // Save to local cache
+      await prefs.setString('cached_restaurants', jsonEncode(restaurants));
 
-    final selected = restaurants.where((r) => picks.contains(r['name'])).toList();
-    final others = restaurants.where((r) => !picks.contains(r['name'])).toList();
-
-    setState(() {
-      _restaurants = [...selected, ...others];
-      _filteredRestaurants = _restaurants;
-    });
-  } catch (e) {
-    print('Firestore failed: $e');
-    // Try to load from local cache
-    final cachedData = prefs.getString('cached_restaurants');
-    if (cachedData != null) {
-      final decoded = List<Map<String, dynamic>>.from(jsonDecode(cachedData));
-      final selected = decoded.where((r) => picks.contains(r['name'])).toList();
-      final others = decoded.where((r) => !picks.contains(r['name'])).toList();
+      final selected =
+          restaurants.where((r) => picks.contains(r['name'])).toList();
+      final others =
+          restaurants.where((r) => !picks.contains(r['name'])).toList();
 
       setState(() {
         _restaurants = [...selected, ...others];
         _filteredRestaurants = _restaurants;
       });
-    } else {
-      // Fallback to hardcoded local data
-      final selected = defaultRestaurantData.where((r) => picks.contains(r['name'])).toList();
-      final others = defaultRestaurantData.where((r) => !picks.contains(r['name'])).toList();
+    } catch (e) {
+      print('Firestore failed: $e');
+      // Try to load from local cache
+      final cachedData = prefs.getString('cached_restaurants');
+      if (cachedData != null) {
+        final decoded = List<Map<String, dynamic>>.from(jsonDecode(cachedData));
+        final selected =
+            decoded.where((r) => picks.contains(r['name'])).toList();
+        final others =
+            decoded.where((r) => !picks.contains(r['name'])).toList();
 
-      setState(() {
-        _restaurants = [...selected, ...others];
-        _filteredRestaurants = _restaurants;
-      });
+        setState(() {
+          _restaurants = [...selected, ...others];
+          _filteredRestaurants = _restaurants;
+        });
+      } else {
+        // Fallback to hardcoded local data
+        final selected =
+            defaultRestaurantData
+                .where((r) => picks.contains(r['name']))
+                .toList();
+        final others =
+            defaultRestaurantData
+                .where((r) => !picks.contains(r['name']))
+                .toList();
+
+        setState(() {
+          _restaurants = [...selected, ...others];
+          _filteredRestaurants = _restaurants;
+        });
+      }
     }
   }
-}
-
 
   void _filterRestaurants() {
     final query = _searchController.text.toLowerCase();
@@ -333,21 +343,21 @@ void _loadAndReorder() async {
       _currentIndex = index;
     });
 
-  if (index == 0) {
-    // Explicitly navigate to home (if needed)
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const RestaurantListingPage(showBackButton: false),
-      ),
-    );
-  } else if (index == 1) {
-    Navigator.pushNamed(context, '/map');
-  } else if (index == 2) {
-    Navigator.pushNamed(context, '/leaderboard');
-  } else if (index == 3) {
-    Navigator.pushNamed(context, '/profile');
-  }
+    if (index == 0) {
+      // Explicitly navigate to home (if needed)
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const RestaurantListingPage(showBackButton: false),
+        ),
+      );
+    } else if (index == 1) {
+      Navigator.pushNamed(context, '/map');
+    } else if (index == 2) {
+      Navigator.pushNamed(context, '/leaderboard');
+    } else if (index == 3) {
+      Navigator.pushNamed(context, '/profile');
+    }
   }
 
   @override
@@ -357,12 +367,15 @@ void _loadAndReorder() async {
       appBar: AppBar(
         backgroundColor: const Color(0xFF4527A0),
         foregroundColor: Colors.white,
-        leading: widget.showBackButton ? IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ): null,
+        leading:
+            widget.showBackButton
+                ? IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                )
+                : null,
         centerTitle: true,
         title: const Text(
           'WeRank',
@@ -420,40 +433,7 @@ void _loadAndReorder() async {
                 ),
 
                 // Map view - always showing as a peek view
-                Container(
-                  height: 120,
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 16.0,
-                    vertical: 8.0,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE8F5E9),
-                    borderRadius: BorderRadius.circular(16.0),
-                    image: const DecorationImage(
-                      image: AssetImage('assets/images/map_placeholder.png'),
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  child: Stack(
-                    children: [
-                      // Map content would go here when integrated with actual maps
-                      Center(
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF4527A0),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.location_on,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                const MapLocationPicker(),
               ],
             ),
           ),

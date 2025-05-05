@@ -100,9 +100,12 @@ flutter:
   assets:
     - assets/images/weRM.png
     - assets/images/map_placeholder.jpg
-    - assets/chophouse.jpg
+    - assets/kfc.jpg
     - assets/bistro.jpg
     - assets/cafe.jpg
+    - assets/livingroom.jpg
+    - assets/papaye.png
+    - assets/treehouse.jpg
   
   #   - images/a_dot_ham.jpeg
 

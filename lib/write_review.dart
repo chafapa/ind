@@ -41,7 +41,6 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
 
   Future<void> _listen() async {
     final micStatus = await Permission.microphone.request();
-
     if (micStatus != PermissionStatus.granted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Microphone permission denied')),
@@ -50,21 +49,44 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
     }
 
     if (!_isListening) {
+      final micStatus = await Permission.microphone.status;
+      print("MIC PERMISSION: $micStatus");
+      if (micStatus.isPermanentlyDenied) {
+        openAppSettings();
+      }
+      final speechPermission = await _speech.hasPermission;
+      print("SPEECH LIB PERMISSION: $speechPermission");
+
       bool available = await _speech.initialize(
-        onStatus: (val) => print('Speech status: $val'),
-        onError: (val) => print('Speech error: $val'),
+        onStatus: (val) {
+          print('Speech status: $val');
+          if (val == 'done' || val == 'notListening') {
+            setState(() => _isListening = false);
+          }
+        },
+        onError: (val) {
+          print('Speech error: ${val.errorMsg}, permanent: ${val.permanent}');
+          setState(() => _isListening = false);
+        },
       );
 
       if (available) {
         setState(() => _isListening = true);
         _speech.listen(
-          onResult:
-              (val) => setState(() {
-                _commentController.text = val.recognizedWords;
-              }),
+          onResult: (val) {
+            print('Heard: ${val.recognizedWords}');
+            setState(() {
+              _commentController.text = val.recognizedWords;
+            });
+          },
+          listenFor: const Duration(seconds: 10), // give it more time
+          pauseFor: const Duration(seconds: 3),
+          partialResults: true,
+          cancelOnError: true,
+          localeId: "en_US", // Optional: force English
         );
       } else {
-        print('Speech recognition not available');
+        print('Speech recognition unavailable');
       }
     } else {
       setState(() => _isListening = false);

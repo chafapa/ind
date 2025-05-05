@@ -29,8 +29,8 @@ const List<Map<String, dynamic>> defaultRestaurantData = [
     'color': Color(0xFF5731EA),
   },
   {
-    'name': 'The Chop House',
-    'image': 'assets/chophouse.jpg',
+    'name': 'Living Room',
+    'image': 'assets/livingroom.jpg',
     'users': '92 U',
     'ratings': {
       'Taste': 0.8,
@@ -42,8 +42,8 @@ const List<Map<String, dynamic>> defaultRestaurantData = [
     'color': Colors.grey,
   },
   {
-    'name': 'Savory Spot',
-    'image': 'assets/savory.jpg',
+    'name': 'KFC',
+    'image': 'assets/kfc.jpg',
     'users': '92 U',
     'ratings': {
       'Taste': 0.8,
@@ -55,8 +55,8 @@ const List<Map<String, dynamic>> defaultRestaurantData = [
     'color': Colors.grey,
   },
   {
-    'name': 'Ocean Grill',
-    'image': 'assets/ocean.jpg',
+    'name': 'Treehouse Restaurant',
+    'image': 'assets/treehouse.jpg',
     'users': '150 U',
     'ratings': {
       'Taste': 0.9,
@@ -68,8 +68,8 @@ const List<Map<String, dynamic>> defaultRestaurantData = [
     'color': Colors.grey,
   },
   {
-    'name': 'Urban Table',
-    'image': 'assets/urban.jpg',
+    'name': 'Papaye',
+    'image': 'assets/papaye.png',
     'users': '92 U',
     'ratings': {
       'Taste': 0.7,

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
-import 'preferences.dart';
+// import 'package:google_maps_flutter/google_maps_flutter.dart';
+// import 'package:geolocator/geolocator.dart';
+// import 'package:geocoding/geocoding.dart';
+// import 'preferences.dart';
 import 'home.dart';
 
 
@@ -298,6 +298,10 @@ import 'home.dart';
 //   }
 // }
 
+// lib/screens/restaurant_selection_screen.dart
+
+import 'package:shared_preferences/shared_preferences.dart';
+
 class RestaurantSelectionScreen extends StatefulWidget {
   const RestaurantSelectionScreen({Key? key}) : super(key: key);
 
@@ -321,62 +325,61 @@ class _RestaurantSelectionScreenState extends State<RestaurantSelectionScreen> {
       'color': const Color(0xFF5731EA),
     },
     {
-      'name': 'The Chop House',
-      'image': 'assets/chophouse.jpg',
+      'name': 'Living Room',
+      'image': 'assets/livingroom.jpg',
       'users': '92 U',
       'color': Colors.grey,
     },
     {
-      'name': 'Savory Spot',
-      'image': 'assets/savory.jpg',
+      'name': 'KFC',
+      'image': 'assets/kfc.jpg',
       'users': '92 U',
       'color': Colors.grey,
     },
     {
-      'name': 'Ocean Grill',
-      'image': 'assets/ocean.jpg',
+      'name': 'Treehouse Restaurant',
+      'image': 'assets/treehouse.jpg',
       'users': '150 U',
       'color': Colors.grey,
     },
     {
-      'name': 'Urban Table',
-      'image': 'assets/urban.jpg',
+      'name': 'Papaye',
+      'image': 'assets/papaye.png',
       'users': '92 U',
       'color': Colors.grey,
     },
   ];
 
-  // currently‐displayed (filtered) list
   List<Map<String, dynamic>> _filteredRestaurants = [];
-
-  // keeps track of which ones the user has tapped
   final List<Map<String, dynamic>> _selected = [];
-
   final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _filteredRestaurants = List.from(_allRestaurants);
-    _searchController.addListener(() {
-      final q = _searchController.text.toLowerCase();
-      setState(() {
-        if (q.isEmpty) {
-          _filteredRestaurants = List.from(_allRestaurants);
-        } else {
-          _filteredRestaurants =
-              _allRestaurants.where((r) {
-                return (r['name'] as String).toLowerCase().contains(q);
-              }).toList();
-        }
-      });
-    });
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged() {
+    final q = _searchController.text.toLowerCase();
+    setState(() {
+      if (q.isEmpty) {
+        _filteredRestaurants = List.from(_allRestaurants);
+      } else {
+        _filteredRestaurants = _allRestaurants
+            .where((r) =>
+                (r['name'] as String).toLowerCase().contains(q))
+            .toList();
+      }
+    });
   }
 
   void _onTileTap(Map<String, dynamic> rest) {
@@ -389,22 +392,36 @@ class _RestaurantSelectionScreenState extends State<RestaurantSelectionScreen> {
     });
   }
 
+  Future<void> _onNextPressed() async {
+    final prefs = await SharedPreferences.getInstance();
+    final names = _selected.map((r) => r['name'] as String).toList();
+    await prefs.setStringList('top_picks', names);
+    // Navigate to the listing page:
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const RestaurantListingPage()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Pick Your Top 3'),
+        backgroundColor: const Color(0xFF5731EA),
+        foregroundColor: Colors.white,
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
-              const SizedBox(height: 20),
               const Text(
                 "Select the best 3 restaurants you've visited",
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
-              // search bar
               TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
@@ -416,11 +433,10 @@ class _RestaurantSelectionScreenState extends State<RestaurantSelectionScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // grid of restaurants
               Expanded(
                 child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 20,
@@ -430,27 +446,37 @@ class _RestaurantSelectionScreenState extends State<RestaurantSelectionScreen> {
                   itemBuilder: (ctx, i) {
                     final rest = _filteredRestaurants[i];
                     final selected = _selected.contains(rest);
+
                     return GestureDetector(
                       onTap: () => _onTileTap(rest),
                       child: Stack(
                         children: [
-                          // tile background & border
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.grey[300],
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color:
-                                    selected
-                                        ? const Color(0xFF5731EA)
-                                        : Colors.transparent,
-                                width: 3,
+                          // Image background
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Image.asset(
+                              rest['image'] as String,
+                              width: double.infinity,
+                              height: double.infinity,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+
+                          // Selection border overlay
+                          if (selected)
+                            Positioned.fill(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: const Color(0xFF5731EA),
+                                    width: 4,
+                                  ),
+                                ),
                               ),
                             ),
-                            width: 100,
-                            height: 100,
-                          ),
-                          // check icon overlay if selected
+
+                          // Check icon
                           if (selected)
                             const Positioned(
                               top: 8,
@@ -461,28 +487,34 @@ class _RestaurantSelectionScreenState extends State<RestaurantSelectionScreen> {
                               ),
                             ),
 
-                          // name & users badge
+                          // Name & users badge
                           Positioned(
-                            top: 110,
-                            left: 0,
-                            right: 0,
+                            bottom: 8,
+                            left: 8,
+                            right: 8,
                             child: Column(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
                                   rest['name'] as String,
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    shadows: [
+                                      Shadow(
+                                        blurRadius: 2,
+                                        color: Colors.black54,
+                                      )
+                                    ],
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
+                                      horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: Colors.grey[200],
+                                    color: Colors.black54,
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: Row(
@@ -497,7 +529,11 @@ class _RestaurantSelectionScreenState extends State<RestaurantSelectionScreen> {
                                         ),
                                       ),
                                       const SizedBox(width: 4),
-                                      Text(rest['users'] as String),
+                                      Text(
+                                        rest['users'] as String,
+                                        style: const TextStyle(
+                                            color: Colors.white),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -510,32 +546,13 @@ class _RestaurantSelectionScreenState extends State<RestaurantSelectionScreen> {
                   },
                 ),
               ),
-
               const SizedBox(height: 16),
-
-              // Next button
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
                   onPressed:
-                      _selected.length == 3
-                          ? () async {
-                            // 1) Persist the 3 names:
-                            await AppPreferences.saveTopPicks(
-                              _selected
-                                  .map((r) => r['name'] as String)
-                                  .toList(),
-                            );
-                            // 2) Then navigate:
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const RestaurantListingPage(),
-                              ),
-                            );
-                          }
-                          : null,
+                      _selected.length == 3 ? _onNextPressed : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF5731EA),
                   ),
@@ -552,3 +569,5 @@ class _RestaurantSelectionScreenState extends State<RestaurantSelectionScreen> {
     );
   }
 }
+
+
