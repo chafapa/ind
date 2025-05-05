@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class WriteReviewPage extends StatefulWidget {
   final String restaurantId;
@@ -39,7 +40,8 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
 
   Future<String?> _uploadImage(File imageFile) async {
     try {
-      final fileName = 'review_images/${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final fileName =
+          'review_images/${DateTime.now().millisecondsSinceEpoch}.jpg';
       final ref = FirebaseStorage.instance.ref().child(fileName);
       await ref.putFile(imageFile);
       return await ref.getDownloadURL();
@@ -49,9 +51,43 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
     }
   }
 
+  // Future<void> _submitReview() async {
+  //   if (_ratings.values.any((v) => v == 0) || _commentController.text.trim().isEmpty) {
+  //     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please complete all fields')));
+  //     return;
+  //   }
+
+  //   setState(() => _isSubmitting = true);
+
+  //   String? imageUrl;
+  //   if (_selectedImage != null) {
+  //     imageUrl = await _uploadImage(_selectedImage!);
+  //   }
+
+  //   try {
+  //     await FirebaseFirestore.instance.collection('reviews').add({
+  //       'restaurantId': widget.restaurantId,
+  //       'ratings': _ratings,
+  //       'comment': _commentController.text.trim(),
+  //       'imageUrl': imageUrl,
+  //       'timestamp': Timestamp.now(),
+  //     });
+
+  //     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Review submitted!')));
+  //     Navigator.pop(context);
+  //   } catch (e) {
+  //     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
+  //   } finally {
+  //     setState(() => _isSubmitting = false);
+  //   }
+  // }
+
   Future<void> _submitReview() async {
-    if (_ratings.values.any((v) => v == 0) || _commentController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please complete all fields')));
+    if (_ratings.values.any((v) => v == 0) ||
+        _commentController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please complete all fields')),
+      );
       return;
     }
 
@@ -62,6 +98,10 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
       imageUrl = await _uploadImage(_selectedImage!);
     }
 
+    final user = FirebaseAuth.instance.currentUser;
+    final authorId = user?.uid ?? 'anonymous';
+    final authorName = user?.displayName ?? user?.email ?? 'Anonymous';
+
     try {
       await FirebaseFirestore.instance.collection('reviews').add({
         'restaurantId': widget.restaurantId,
@@ -69,12 +109,18 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
         'comment': _commentController.text.trim(),
         'imageUrl': imageUrl,
         'timestamp': Timestamp.now(),
+        'authorId': authorId,
+        'authorName': authorName,
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Review submitted!')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Review submitted!')));
       Navigator.pop(context);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed: $e')));
     } finally {
       setState(() => _isSubmitting = false);
     }
@@ -85,7 +131,13 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
-          SizedBox(width: 140, child: Text(label, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500))),
+          SizedBox(
+            width: 140,
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+            ),
+          ),
           Expanded(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.start,
@@ -93,7 +145,10 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
                 return IconButton(
                   icon: Icon(
                     index < _ratings[label]! ? Icons.star : Icons.star_border,
-                    color: index < _ratings[label]! ? Colors.amber[700] : Colors.grey[300],
+                    color:
+                        index < _ratings[label]!
+                            ? Colors.amber[700]
+                            : Colors.grey[300],
                     size: 30,
                   ),
                   onPressed: () {
@@ -116,7 +171,10 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Write a Review', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+        title: const Text(
+          'Write a Review',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+        ),
         backgroundColor: const Color(0xFF5731EA),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -162,7 +220,11 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
                     border: Border.all(color: Colors.grey[200]!),
                   ),
                   child: IconButton(
-                    icon: const Icon(Icons.camera_alt, color: Color(0xFF5731EA), size: 30),
+                    icon: const Icon(
+                      Icons.camera_alt,
+                      color: Color(0xFF5731EA),
+                      size: 30,
+                    ),
                     onPressed: () => _pickImage(ImageSource.camera),
                   ),
                 ),
@@ -175,15 +237,25 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.grey[200]!),
                   ),
-                  child: _selectedImage != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.file(_selectedImage!, width: 70, height: 70, fit: BoxFit.cover),
-                      )
-                    : IconButton(
-                        icon: const Icon(Icons.photo_library, color: Color(0xFF5731EA), size: 30),
-                        onPressed: () => _pickImage(ImageSource.gallery),
-                      ),
+                  child:
+                      _selectedImage != null
+                          ? ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.file(
+                              _selectedImage!,
+                              width: 70,
+                              height: 70,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                          : IconButton(
+                            icon: const Icon(
+                              Icons.photo_library,
+                              color: Color(0xFF5731EA),
+                              size: 30,
+                            ),
+                            onPressed: () => _pickImage(ImageSource.gallery),
+                          ),
                 ),
               ],
             ),
@@ -199,15 +271,22 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
                 onPressed: _isSubmitting ? null : _submitReview,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF5731EA),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(50),
+                  ),
                   elevation: 0,
                 ),
-                child: _isSubmitting
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
-                        'Submit Review',
-                        style: TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.w500),
-                      ),
+                child:
+                    _isSubmitting
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
+                          'Submit Review',
+                          style: TextStyle(
+                            fontSize: 20,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
               ),
             ),
           ],
