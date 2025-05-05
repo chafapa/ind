@@ -4,6 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:permission_handler/permission_handler.dart';
 
 class WriteReviewPage extends StatefulWidget {
   final String restaurantId;
@@ -27,6 +29,49 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
   File? _selectedImage;
   bool _isSubmitting = false;
 
+  // 🔊 Speech-to-text
+  late stt.SpeechToText _speech;
+  bool _isListening = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _speech = stt.SpeechToText();
+  }
+
+  Future<void> _listen() async {
+    final micStatus = await Permission.microphone.request();
+
+    if (micStatus != PermissionStatus.granted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Microphone permission denied')),
+      );
+      return;
+    }
+
+    if (!_isListening) {
+      bool available = await _speech.initialize(
+        onStatus: (val) => print('Speech status: $val'),
+        onError: (val) => print('Speech error: $val'),
+      );
+
+      if (available) {
+        setState(() => _isListening = true);
+        _speech.listen(
+          onResult:
+              (val) => setState(() {
+                _commentController.text = val.recognizedWords;
+              }),
+        );
+      } else {
+        print('Speech recognition not available');
+      }
+    } else {
+      setState(() => _isListening = false);
+      _speech.stop();
+    }
+  }
+
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: source, imageQuality: 75);
@@ -43,50 +88,68 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
       final fileName =
           'review_images/${DateTime.now().millisecondsSinceEpoch}.jpg';
       final ref = FirebaseStorage.instance.ref().child(fileName);
-      await ref.putFile(imageFile);
-      return await ref.getDownloadURL();
+
+      print('Uploading file: ${imageFile.path}');
+      final uploadTask = await ref.putFile(imageFile);
+      final downloadUrl = await ref.getDownloadURL();
+      print('Upload successful. URL: $downloadUrl');
+
+      return downloadUrl;
     } catch (e) {
       print('Image upload error: $e');
       return null;
     }
   }
 
-  // Future<void> _submitReview() async {
-  //   if (_ratings.values.any((v) => v == 0) || _commentController.text.trim().isEmpty) {
-  //     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please complete all fields')));
-  //     return;
-  //   }
-
-  //   setState(() => _isSubmitting = true);
-
-  //   String? imageUrl;
-  //   if (_selectedImage != null) {
-  //     imageUrl = await _uploadImage(_selectedImage!);
-  //   }
-
-  //   try {
-  //     await FirebaseFirestore.instance.collection('reviews').add({
-  //       'restaurantId': widget.restaurantId,
-  //       'ratings': _ratings,
-  //       'comment': _commentController.text.trim(),
-  //       'imageUrl': imageUrl,
-  //       'timestamp': Timestamp.now(),
-  //     });
-
-  //     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Review submitted!')));
-  //     Navigator.pop(context);
-  //   } catch (e) {
-  //     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
-  //   } finally {
-  //     setState(() => _isSubmitting = false);
-  //   }
-  // }
+  void showReviewDialog(
+    BuildContext context,
+    String comment,
+    String? imageUrl,
+  ) {
+    showDialog(
+      context: context,
+      builder:
+          (_) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            contentPadding: const EdgeInsets.all(16),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (imageUrl != null)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        imageUrl,
+                        width: double.infinity,
+                        height: 200,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  Text(comment, style: const TextStyle(fontSize: 16)),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                child: const Text(
+                  "Close",
+                  style: TextStyle(color: Color(0xFF5731EA)),
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+    );
+  }
 
   Future<void> _submitReview() async {
-    if (_ratings.values.any((v) => v == 0) ||
-        _commentController.text.trim().isEmpty) {
+    if (_ratings.values.any((v) => v == 0)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please complete all fields')),
+        const SnackBar(content: Text('Please rate all categories')),
       );
       return;
     }
@@ -187,28 +250,54 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
           children: [
             ..._ratings.keys.map(_buildStarRow),
             const SizedBox(height: 16),
-            TextField(
-              controller: _commentController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: 'Additional comments',
-                hintStyle: TextStyle(color: Colors.grey[400], fontSize: 18),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _commentController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      hintText: 'Additional comments',
+                      hintStyle: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 18,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.all(16),
+                    ),
+                  ),
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(
+                    _isListening ? Icons.mic : Icons.mic_none,
+                    color: const Color(0xFF5731EA),
+                    size: 28,
+                  ),
+                  onPressed: _listen,
                 ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.all(16),
-              ),
+                IconButton(
+                  icon: const Icon(Icons.send, color: Color(0xFF5731EA)),
+                  onPressed: () {
+                    FocusScope.of(context).unfocus();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Comment captured!')),
+                    );
+                  },
+                ),
+              ],
             ),
             const SizedBox(height: 24),
-
-            // Image picker row
             Row(
               children: [
                 Container(
@@ -259,9 +348,7 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
                 ),
               ],
             ),
-
             const SizedBox(height: 40),
-
             Container(
               height: 56,
               decoration: BoxDecoration(
