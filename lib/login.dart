@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'forgot_password.dart'; // Add import here
 import 'gets1.dart'; // Contains LocationScreen
 import 'register.dart';
 
@@ -27,34 +28,33 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _login() async {
-  final email = _emailController.text.trim();
-  final password = _passwordController.text;
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
 
-  if (email.isEmpty || password.isEmpty) {
-    _showMessage('Please enter both email and password');
-    return;
+    if (email.isEmpty || password.isEmpty) {
+      _showMessage('Please enter both email and password');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
+      // On success, navigate to RestaurantSelectionScreen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const RestaurantSelectionScreen()),
+      );
+    } on FirebaseAuthException catch (e) {
+      _showMessage(e.message ?? 'Login failed');
+    } catch (e, stackTrace) {
+      print("Unexpected error: $e");
+      print("StackTrace: $stackTrace");
+      _showMessage("An unexpected error occurred");
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
-
-  setState(() => _isLoading = true);
-  try {
-    await FirebaseAuth.instance
-        .signInWithEmailAndPassword(email: email, password: password);
-    // On success, navigate to RestaurantSelectionScreen
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const RestaurantSelectionScreen()),
-    );
-  } on FirebaseAuthException catch (e) {
-    _showMessage(e.message ?? 'Login failed');
-  } catch (e, stackTrace) {
-    print("Unexpected error: $e");
-    print("StackTrace: $stackTrace");
-    _showMessage("An unexpected error occurred");
-  } finally {
-    setState(() => _isLoading = false);
-  }
-}
-
 
   void _showMessage(String message, {bool isError = true}) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -123,7 +123,12 @@ class _LoginPageState extends State<LoginPage> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () {
-                      // TODO: implement forgot password
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ForgotPasswordPage(),
+                        ),
+                      );
                     },
                     child: const Text(
                       'Forgot Password?',
@@ -214,13 +219,13 @@ class _LoginPageState extends State<LoginPage> {
                           _isLoading
                               ? null
                               : () {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const RegisterPage(),
-                                  ),
-                                );
-                              },
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const RegisterPage(),
+                                    ),
+                                  );
+                                },
                       child: const Text(
                         'Register',
                         style: TextStyle(

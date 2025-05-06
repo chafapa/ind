@@ -8,6 +8,7 @@ import 'location_screen.dart';
 import 'ranking.dart';
 import 'login.dart';
 import 'register.dart';
+import 'profile.dart';
 
 // import 'package:firebase_app_check/firebase_app_check.dart';
 
@@ -39,6 +40,7 @@ class MyApp extends StatelessWidget {
         '/leaderboard': (c) => const LeaderboardPage(),
         '/login':       (c) => const LoginPage(),
         '/register':    (c) => const RegisterPage(),
+        '/profile':    (c) => const ProfilePage(),
       },
     );
   }

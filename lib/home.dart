@@ -8,7 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert'; // For JSON encoding/decoding
 import 'map_location_picker.dart';
-
+import 'payment_page.dart';
 
 class RestaurantCard extends StatelessWidget {
   final String name;
@@ -235,22 +235,6 @@ class _RestaurantListingPageState extends State<RestaurantListingPage> {
     super.dispose();
   }
 
-  // void _loadAndReorder() {
-  //   final picks = AppPreferences.getTopPicks();
-  //   final selected =
-  //       defaultRestaurantData
-  //           .where((r) => picks.contains(r['name'] as String))
-  //           .toList();
-  //   final others =
-  //       defaultRestaurantData
-  //           .where((r) => !picks.contains(r['name'] as String))
-  //           .toList();
-  //   setState(() {
-  //     _restaurants = [...selected, ...others];
-  //     _filteredRestaurants = _restaurants;
-  //   });
-  // }
-
   void _loadAndReorder() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final picks = AppPreferences.getTopPicks();
@@ -336,27 +320,56 @@ class _RestaurantListingPageState extends State<RestaurantListingPage> {
   }
 
   // Navigation handler
-  void _onNavTap(int index) {
-    if (index == _currentIndex) return; // Skip if already on this page
+  // void _onNavTap(int index) {
+  //   if (index == _currentIndex) return; // Skip if already on this page
 
+  //   setState(() {
+  //     _currentIndex = index;
+  //   });
+
+  //   if (index == 0) {
+  //     // Explicitly navigate to home (if needed)
+  //     Navigator.pushReplacement(
+  //       context,
+  //       MaterialPageRoute(
+  //         builder: (_) => const RestaurantListingPage(showBackButton: false),
+  //       ),
+  //     );
+  //   } else if (index == 1) {
+  //     Navigator.pushNamed(context, '/map');
+  //   } else if (index == 2) {
+  //     Navigator.pushNamed(context, '/leaderboard');
+  //   } else if (index == 3) {
+  //     Navigator.pushNamed(context, '/profile');
+  //   }
+  // }
+
+  void _onNavTap(int index) {
+    if (index == _currentIndex) return;
     setState(() {
       _currentIndex = index;
     });
 
     if (index == 0) {
-      // Explicitly navigate to home (if needed)
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const RestaurantListingPage(showBackButton: false),
-        ),
-      );
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
     } else if (index == 1) {
-      Navigator.pushNamed(context, '/map');
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/map',
+        (route) => route.settings.name == '/home',
+      );
     } else if (index == 2) {
-      Navigator.pushNamed(context, '/leaderboard');
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/leaderboard',
+        (route) => route.settings.name == '/home',
+      );
     } else if (index == 3) {
-      Navigator.pushNamed(context, '/profile');
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/profile',
+        (route) => route.settings.name == '/home',
+      );
     }
   }
 
@@ -365,17 +378,10 @@ class _RestaurantListingPageState extends State<RestaurantListingPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: const Color(0xFF4527A0),
         foregroundColor: Colors.white,
-        leading:
-            widget.showBackButton
-                ? IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                )
-                : null,
+
         centerTitle: true,
         title: const Text(
           'WeRank',
@@ -383,9 +389,34 @@ class _RestaurantListingPageState extends State<RestaurantListingPage> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.push_pin_outlined),
+            icon: const Icon(Icons.payment), // ← payment icon now
+            tooltip: 'Pay with MoMo', // ← helpful tooltip
             onPressed: () {
-              // Handle pin functionality
+              showDialog(
+                context: context,
+                builder:
+                    (_) => AlertDialog(
+                      title: const Text('Pay with MoMo'),
+                      content: const Text('Proceed to Mobile Money payment?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Cancel'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const PaymentPage(),
+                              ),
+                            );
+                          },
+                          child: const Text('Pay with MoMo'),
+                        ),
+                      ],
+                    ),
+              );
             },
           ),
         ],

@@ -47,12 +47,12 @@ class _RegisterPageState extends State<RegisterPage> {
       debugPrint('Registered new user: ${cred.user?.uid}');
       await cred.user?.updateDisplayName(_fullNameController.text.trim());
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Registration successful'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   const SnackBar(
+      //     content: Text('Registration successful'),
+      //     backgroundColor: Colors.green,
+      //   ),
+      // );
 
       // only navigate after the user is created
       if (!mounted) return;

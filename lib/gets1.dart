@@ -328,25 +328,25 @@ class _RestaurantSelectionScreenState extends State<RestaurantSelectionScreen> {
       'name': 'Living Room',
       'image': 'assets/livingroom.jpg',
       'users': '92 U',
-      'color': Colors.grey,
+      'color': const Color(0xFF5731EA),
     },
     {
       'name': 'KFC',
       'image': 'assets/kfc.jpg',
       'users': '92 U',
-      'color': Colors.grey,
+      'color': const Color(0xFF5731EA),
     },
     {
       'name': 'Treehouse Restaurant',
       'image': 'assets/treehouse.jpg',
       'users': '150 U',
-      'color': Colors.grey,
+      'color': const Color(0xFF5731EA),
     },
     {
       'name': 'Papaye',
       'image': 'assets/papaye.png',
       'users': '92 U',
-      'color': Colors.grey,
+      'color': const Color(0xFF5731EA),
     },
   ];
 

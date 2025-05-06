@@ -5,6 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/offline_tile_provider.dart';
 
 class LocationScreen extends StatefulWidget {
   const LocationScreen({Key? key}) : super(key: key);
@@ -13,165 +14,275 @@ class LocationScreen extends StatefulWidget {
 }
 
 class _LocationScreenState extends State<LocationScreen> {
-  // ---------------------------------------------------------------------------
-  static const _kLat = 'pinned_lat';
-  static const _kLng = 'pinned_lng';
+  static const _kLat = 'pinned_lat', _kLng = 'pinned_lng';
 
   final Completer<GoogleMapController> _controller = Completer();
   final Map<MarkerId, Marker> _markers = {};
+  Set<TileOverlay> _tileOverlays = {};
 
   LatLng? _initialCentre;
-  bool    _loading = true;
+  bool _loading = true;
+  bool _offline = false;
 
-  // ===========================================================================
   @override
   void initState() {
     super.initState();
-    debugPrint('▶️ LocationScreen initState → _initialise()');
     _initialise();
   }
 
-  // ===========================================================================
   Future<void> _initialise() async {
-    try {
-      _initialCentre = await _resolveInitialCentre();
-      debugPrint('✅ Initial centre resolved: $_initialCentre');
-
-      await _loadRestaurantMarkers();
-      debugPrint('✅ Markers loaded: ${_markers.length}');
-    } catch (e, st) {
-      debugPrint('❌ Error in _initialise → $e');
-      debugPrintStack(stackTrace: st);
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+    _initialCentre = await _resolveInitialCentre();
+    await _loadRestaurantMarkers();
+    if (mounted) setState(() => _loading = false);
   }
 
-  // ---------------------------------------------------------------------------
   Future<LatLng> _resolveInitialCentre() async {
-    final prefs  = await SharedPreferences.getInstance();
-    final pinLat = prefs.getDouble(_kLat);
-    final pinLng = prefs.getDouble(_kLng);
-
-    if (pinLat != null && pinLng != null) {
-      debugPrint('ℹ️ Using saved pin $pinLat,$pinLng');
-      return LatLng(pinLat, pinLng);
-    }
-
+    final p = await SharedPreferences.getInstance();
+    final lat = p.getDouble(_kLat), lng = p.getDouble(_kLng);
+    if (lat != null && lng != null) return LatLng(lat, lng);
     try {
-      final pos = await _getCurrentPosition();
-      debugPrint('ℹ️ Using live GPS ${pos.latitude},${pos.longitude}');
+      final pos = await Geolocator.getCurrentPosition();
       return LatLng(pos.latitude, pos.longitude);
     } catch (_) {
-      debugPrint('⚠️ Location denied → falling back to Ghana centre');
       return const LatLng(7.9465, -1.0232);
     }
   }
 
-  Future<Position> _getCurrentPosition() async {
-    LocationPermission perm = await Geolocator.checkPermission();
-    if (perm == LocationPermission.denied ||
-        perm == LocationPermission.deniedForever) {
-      perm = await Geolocator.requestPermission();
-    }
-    if (perm == LocationPermission.denied ||
-        perm == LocationPermission.deniedForever) {
-      throw Exception('Location permission denied');
-    }
-    return Geolocator.getCurrentPosition();
-  }
-
-  // ===========================================================================
   Future<void> _loadRestaurantMarkers() async {
-    debugPrint('📡 Fetching restaurants from Firestore…');
-    final snapshot = await FirebaseFirestore.instance
-        .collection('restaurants')
-        .get();
-    debugPrint('📄 Fetched ${snapshot.docs.length} docs');
+    final snap =
+        await FirebaseFirestore.instance.collection('restaurants').get();
+    final user = await Geolocator.getCurrentPosition();
+    double? bestD;
+    String? bestId;
 
-    final userPos = await _getCurrentPosition();
-    final userLat = userPos.latitude;
-    final userLng = userPos.longitude;
-
-    double? bestDistance;
-    String? bestDocId;
-
-    for (final doc in snapshot.docs) {
-      final data = doc.data();
-      final lat  = data['lat'];
-      final lng  = data['lng'];
-      if (lat == null || lng == null) {
-        debugPrint('↩️  ${doc.id} skipped (no lat/lng)');
-        continue;
-      }
-
-      final markerId = MarkerId(doc.id);
-      _markers[markerId] = Marker(
-        markerId: markerId,
-        position: LatLng(lat as double, lng as double),
+    for (var doc in snap.docs) {
+      final d = doc.data();
+      final lat = d['lat'] as double?, lng = d['lng'] as double?;
+      if (lat == null || lng == null) continue;
+      final id = MarkerId(doc.id);
+      _markers[id] = Marker(
+        markerId: id,
+        position: LatLng(lat, lng),
         infoWindow: InfoWindow(
-          title: data['name'] ?? 'Restaurant',
-          snippet: 'Tap for details',
+          title: d['name'] ?? '',
+          snippet: 'Tap to see distance',
         ),
-        onTap: () => _controller.future.then(
-          (c) => c.animateCamera(CameraUpdate.newCameraPosition(
-            CameraPosition(target: LatLng(lat, lng), zoom: 16),
-          )),
-        ),
+        onTap: () => _onMarkerTap(lat, lng, d['name'] ?? ''),
       );
 
-      final dist = Geolocator.distanceBetween(userLat, userLng, lat, lng);
-      debugPrint('→ ${data['name']}  dist=${dist.toStringAsFixed(1)} m');
-
-      if (bestDistance == null || dist < bestDistance) {
-        bestDistance = dist;
-        bestDocId    = doc.id;
+      final dist = Geolocator.distanceBetween(
+        user.latitude,
+        user.longitude,
+        lat,
+        lng,
+      );
+      if (bestD == null || dist < bestD) {
+        bestD = dist;
+        bestId = doc.id;
       }
     }
 
-    if (bestDocId != null && _initialCentre == null) {
-      final nearest = _markers[MarkerId(bestDocId)]!;
-      _initialCentre = nearest.position;
-      debugPrint('⭐ Nearest = $bestDocId  (${bestDistance!.toStringAsFixed(1)} m)');
+    if (bestId != null && _initialCentre == null) {
+      _initialCentre = _markers[MarkerId(bestId)]!.position;
     }
   }
 
-  // ===========================================================================
+  Future<void> _onMarkerTap(double lat, double lng, String name) async {
+    final controller = await _controller.future;
+    await controller.animateCamera(
+      CameraUpdate.newLatLngZoom(LatLng(lat, lng), 16),
+    );
+
+    final user = await Geolocator.getCurrentPosition();
+    final double straight = Geolocator.distanceBetween(
+      user.latitude,
+      user.longitude,
+      lat,
+      lng,
+    );
+
+    // define approx speeds in m/min
+    const footSpeed = 83.33; // ~5 km/h
+    const bicycleSpeed = 250.0; // ~15 km/h
+    const motorbikeSpeed = 666.67; // ~40 km/h
+    const carSpeed = 833.33; // ~50 km/h
+
+    final onFoot = straight;
+    final timeFoot = onFoot / footSpeed;
+    final byBicycle = straight * 1.10;
+    final timeBike = byBicycle / bicycleSpeed;
+    final byMotor = straight * 1.05;
+    final timeMotor = byMotor / motorbikeSpeed;
+    final byCar = straight * 1.20;
+    final timeCar = byCar / carSpeed;
+
+    showModalBottomSheet(
+      context: context,
+      builder:
+          (_) => Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildModeRow(
+                  Icons.directions_walk,
+                  'On foot',
+                  onFoot,
+                  timeFoot,
+                ),
+                _buildModeRow(
+                  Icons.directions_bike,
+                  'By bicycle',
+                  byBicycle,
+                  timeBike,
+                ),
+                _buildModeRow(
+                  Icons.motorcycle,
+                  'By motorbike',
+                  byMotor,
+                  timeMotor,
+                ),
+                _buildModeRow(Icons.directions_car, 'By car', byCar, timeCar),
+              ],
+            ),
+          ),
+    );
+  }
+
+  Widget _buildModeRow(
+    IconData icon,
+    String label,
+    double dist,
+    double minutes,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 28, color: const Color(0xFF5731EA)),
+          const SizedBox(width: 12),
+          Text(
+            '$label: ${dist.toStringAsFixed(0)} m, '
+            'approx ${minutes.toStringAsFixed(0)} min',
+            style: const TextStyle(fontSize: 16),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _toggleOffline() {
+    setState(() {
+      _offline = !_offline;
+      if (_offline) {
+        _tileOverlays = {
+          TileOverlay(
+            tileOverlayId: const TileOverlayId('offline'),
+            tileProvider: OfflineTileProvider(),
+          ),
+        };
+      } else {
+        _tileOverlays = {};
+      }
+    });
+  }
+
+  // @override
+  // Widget build(BuildContext ctx) {
+  //   if (_loading) {
+  //     return const Scaffold(
+  //       body: Center(child: CircularProgressIndicator()),
+  //     );
+  //   }
+  //   return Scaffold(
+  //     appBar: AppBar(
+  //       title: const Text('Nearby Restaurants'),
+  //       actions: [
+  //         PopupMenuButton(
+  //           icon: const Icon(Icons.more_vert),
+  //           onSelected: (_) => _toggleOffline(),
+  //           itemBuilder: (_) => [
+  //             PopupMenuItem(
+  //               value: 'offline',
+  //               child: Text(
+  //                 _offline ? 'Disable Offline' : 'Enable Offline',
+  //               ),
+  //             ),
+  //           ],
+  //         ),
+  //       ],
+  //     ),
+  //     body: GoogleMap(
+  //       initialCameraPosition:
+  //           CameraPosition(target: _initialCentre!, zoom: 14),
+  //       myLocationEnabled: true,
+  //       myLocationButtonEnabled: true,
+  //       markers: _markers.values.toSet(),
+  //       tileOverlays: _tileOverlays,
+  //       onMapCreated: (c) {
+  //         if (!_controller.isCompleted) _controller.complete(c);
+  //       },
+  //     ),
+  //   );
+  // }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext ctx) {
     if (_loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Nearby Restaurants'),
-        backgroundColor: const Color(0xFF4527A0),
-        foregroundColor: Colors.white,
-      ),
-      body: GoogleMap(
-        initialCameraPosition: CameraPosition(target: _initialCentre!, zoom: 14),
-        myLocationEnabled: true,
-        myLocationButtonEnabled: true,
-        markers: _markers.values.toSet(),
-        onMapCreated: (c) {
-          debugPrint('🗺️ GoogleMap created');
-          if (!_controller.isCompleted) _controller.complete(c);
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF4527A0),
-        child: const Icon(Icons.my_location),
-        onPressed: () async {
-          final pos = await _getCurrentPosition();
-          debugPrint('📍 FAB → centring on user ${pos.latitude},${pos.longitude}');
-          final controller = await _controller.future;
-          controller.animateCamera(
-            CameraUpdate.newLatLng(LatLng(pos.latitude, pos.longitude)),
-          );
-        },
+    return PopScope(
+      // Block any automatic pop (back button/gesture)…
+      canPop: false,
+      // …but get notified when the user tries to go back
+      onPopInvokedWithResult: (didPop, result) {
+        // Manually replace this page with Home
+        Navigator.pushReplacementNamed(context, '/home');
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF4527A0), // your purple
+          foregroundColor: Colors.white, // white text/icons
+          centerTitle: true,
+          title: const Text('Nearby Restaurants'),
+          actions: [
+            PopupMenuButton(
+              icon: const Icon(Icons.more_vert),
+              onSelected: (_) => _toggleOffline(),
+              itemBuilder:
+                  (_) => [
+                    PopupMenuItem(
+                      value: 'offline',
+                      child: Text(
+                        _offline ? 'Disable Offline' : 'Enable Offline',
+                      ),
+                    ),
+                  ],
+            ),
+          ],
+        ),
+        body: GoogleMap(
+          initialCameraPosition: CameraPosition(
+            target: _initialCentre!,
+            zoom: 14,
+          ),
+          myLocationEnabled: true,
+          myLocationButtonEnabled: true,
+          markers: _markers.values.toSet(),
+          tileOverlays: _tileOverlays,
+          onMapCreated: (c) {
+            if (!_controller.isCompleted) _controller.complete(c);
+          },
+        ),
       ),
     );
   }
