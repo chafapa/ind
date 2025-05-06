@@ -6,7 +6,7 @@ import 'navigation.dart';
 import 'details.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert'; // For JSON encoding/decoding
+import 'dart:convert'; 
 import 'map_location_picker.dart';
 import 'payment_page.dart';
 

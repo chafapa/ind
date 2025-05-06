@@ -110,4 +110,4 @@ restaurants = [
 for r in restaurants:
     db.collection("restaurants").document(r["id"]).set(r)
 
-print("✅ Geo‑enabled restaurant data uploaded.")
+print(" Geo‑enabled restaurant data uploaded.")

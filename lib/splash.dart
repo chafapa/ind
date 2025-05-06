@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
-import 'preferences.dart';          
-import 'home.dart';             
-import 'register.dart';     
-
-
-
-
+import 'preferences.dart';
+import 'home.dart';
+import 'register.dart';
 
 // ← This is the missing piece:
 class InitialScreen extends StatefulWidget {
@@ -23,9 +19,6 @@ class InitialScreenState extends State<InitialScreen> {
   }
 
   Future<void> _initializeApp() async {
-     await AppPreferences.resetFirstTimeFlag();
-
-
     await Future.delayed(const Duration(seconds: 3));
     if (!mounted) return;
 
@@ -43,7 +36,7 @@ class InitialScreenState extends State<InitialScreen> {
     }
   }
 
-@override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF4A0BD6),
@@ -79,4 +72,3 @@ class InitialScreenState extends State<InitialScreen> {
     );
   }
 }
-

@@ -10,7 +10,6 @@ import 'login.dart';
 import 'register.dart';
 import 'profile.dart';
 
-// import 'package:firebase_app_check/firebase_app_check.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

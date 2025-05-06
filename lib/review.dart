@@ -21,7 +21,7 @@ class RestaurantDetailPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF4527A0), // Deep purple from the code
+        backgroundColor: const Color(0xFF4527A0), 
         foregroundColor: Colors.white,
         centerTitle: true,
         title: Text(
@@ -111,7 +111,7 @@ class RestaurantDetailPage extends StatelessWidget {
                     ...ratings.entries.map((entry) => RatingBarWithValue(
                           label: entry.key,
                           value: entry.value,
-                          ratingValue: entry.value * 5, // Converting to 5-star scale
+                          ratingValue: entry.value * 5, 
                         )),
                     const SizedBox(height: 20),
                     // Reviews Section

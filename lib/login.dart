@@ -2,9 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'forgot_password.dart'; // Add import here
-import 'gets1.dart'; // Contains LocationScreen
+import 'package:shared_preferences/shared_preferences.dart'; 
+import 'forgot_password.dart'; 
+import 'gets1.dart'; 
 import 'register.dart';
+import 'home.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -40,11 +42,23 @@ class _LoginPageState extends State<LoginPage> {
     try {
       await FirebaseAuth.instance
           .signInWithEmailAndPassword(email: email, password: password);
-      // On success, navigate to RestaurantSelectionScreen
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const RestaurantSelectionScreen()),
-      );
+      
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      bool isFirstTime = prefs.getBool('isFirstTime') ?? true;
+
+      if (isFirstTime) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const RestaurantSelectionScreen()),
+        );
+        prefs.setBool('isFirstTime', false); 
+      } else {
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const RestaurantListingPage()),
+        );
+      }
     } on FirebaseAuthException catch (e) {
       _showMessage(e.message ?? 'Login failed');
     } catch (e, stackTrace) {
@@ -160,50 +174,6 @@ class _LoginPageState extends State<LoginPage> {
                                 color: Colors.white,
                               ),
                             ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Row(
-                  children: [
-                    Expanded(child: Divider(color: Colors.grey)),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        'Or login with',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ),
-                    Expanded(child: Divider(color: Colors.grey)),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: OutlinedButton.icon(
-                    icon: Image.asset(
-                      'assets/google_logo.png',
-                      width: 24,
-                      height: 24,
-                      errorBuilder:
-                          (context, error, stackTrace) =>
-                              const Icon(Icons.g_mobiledata, size: 24),
-                    ),
-                    label: const Text(
-                      'Google',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    onPressed: () {
-                      // TODO: implement Google Sign-In
-                    },
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Colors.grey.shade300),
-                      backgroundColor: Colors.white,
-                    ),
                   ),
                 ),
                 const SizedBox(height: 24),

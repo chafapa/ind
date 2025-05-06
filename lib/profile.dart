@@ -112,6 +112,39 @@ class _ProfilePageState extends State<ProfilePage>
     }
   }
 
+  // Show logout confirmation dialog
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Logout"),
+          content: const Text("Are you sure you want to logout?"),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+              },
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () async {
+                await FirebaseAuth.instance.signOut();
+                Navigator.of(context).pop(); // Close dialog
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/login',
+                  (r) => false,
+                );
+              },
+              child: const Text("Logout"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -134,7 +167,7 @@ class _ProfilePageState extends State<ProfilePage>
                       SliverToBoxAdapter(
                         child: Column(
                           children: [
-                            // Status bar with logout
+                            // Status bar with logout icon
                             Padding(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 16.0,
@@ -149,19 +182,10 @@ class _ProfilePageState extends State<ProfilePage>
                                       Navigator.pushReplacementNamed(context, '/home');
                                     },
                                   ),
-                                  TextButton(
-                                    onPressed: () async {
-                                      await FirebaseAuth.instance.signOut();
-                                      Navigator.pushNamedAndRemoveUntil(
-                                        context,
-                                        '/login',
-                                        (r) => false,
-                                      );
-                                    },
-                                    child: const Text(
-                                      "Logout",
-                                      style: TextStyle(color: Colors.white),
-                                    ),
+                                  IconButton(
+                                    icon: const Icon(Icons.logout, color: Colors.white),
+                                    onPressed: _showLogoutDialog,
+                                    tooltip: 'Logout',
                                   ),
                                 ],
                               ),
@@ -529,7 +553,6 @@ class _ProfilePageState extends State<ProfilePage>
                         ),
                       ),
 
-                      // Favourites tab - Implement your favorites functionality here
                       SingleChildScrollView(
                         padding: const EdgeInsets.all(16.0),
                         child: const Center(

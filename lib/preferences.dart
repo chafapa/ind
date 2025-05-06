@@ -18,30 +18,26 @@ class AppPreferences {
   static Future<void> setFirstTimeDone() async => _prefs.setBool(_firstTimeKey, false);
   static Future<void> resetFirstTimeFlag() async => _prefs.remove(_firstTimeKey);
 
-  /// Save a list of the top-3 restaurant names
   static Future<void> saveTopPicks(List<String> names) async {
     await _prefs.setStringList(_topPicksKey, names);
   }
 
-  /// Retrieve that list (empty if none saved)
+
   static List<String> getTopPicks() {
     return _prefs.getStringList(_topPicksKey) ?? [];
   }
 
-  // NEW: Save location coordinates
   static Future<void> setLocation(double latitude, double longitude) async {
     await _prefs.setDouble(_locationLatKey, latitude);
     await _prefs.setDouble(_locationLngKey, longitude);
   }
 
-  // NEW: Get saved location (returns null if not set)
   static LatLng? getLocation() {
     final lat = _prefs.getDouble(_locationLatKey);
     final lng = _prefs.getDouble(_locationLngKey);
     return (lat != null && lng != null) ? LatLng(lat, lng) : null;
   }
 
-  // NEW: Clear saved location
   static Future<void> clearLocation() async {
     await _prefs.remove(_locationLatKey);
     await _prefs.remove(_locationLngKey);

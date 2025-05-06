@@ -101,11 +101,10 @@ class _LocationScreenState extends State<LocationScreen> {
       lng,
     );
 
-    // define approx speeds in m/min
-    const footSpeed = 83.33; // ~5 km/h
-    const bicycleSpeed = 250.0; // ~15 km/h
-    const motorbikeSpeed = 666.67; // ~40 km/h
-    const carSpeed = 833.33; // ~50 km/h
+    const footSpeed = 83.33; 
+    const bicycleSpeed = 250.0; 
+    const motorbikeSpeed = 666.67; 
+    const carSpeed = 833.33; 
 
     final onFoot = straight;
     final timeFoot = onFoot / footSpeed;
@@ -241,17 +240,14 @@ class _LocationScreenState extends State<LocationScreen> {
     }
 
     return PopScope(
-      // Block any automatic pop (back button/gesture)…
       canPop: false,
-      // …but get notified when the user tries to go back
       onPopInvokedWithResult: (didPop, result) {
-        // Manually replace this page with Home
         Navigator.pushReplacementNamed(context, '/home');
       },
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: const Color(0xFF4527A0), // your purple
-          foregroundColor: Colors.white, // white text/icons
+          backgroundColor: const Color(0xFF4527A0), 
+          foregroundColor: Colors.white, 
           centerTitle: true,
           title: const Text('Nearby Restaurants'),
           actions: [
